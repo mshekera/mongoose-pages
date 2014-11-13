@@ -8,10 +8,15 @@ var connection = mongoose.createConnection('mongodb://localhost/mongoose-pages')
 var UserSchema = new mongoose.Schema({
     username: String,
     points: Number,
-    email: String
+    email: String,
+    position: {
+        type: Number,
+        unique: true,
+        sparse: true
+    }
 })
 mongoosePages.anchor(UserSchema);
-var User = connection.model('User', UserSchema);
+var User = connection.model('UserAnchor', UserSchema);
 
 describe('mongoosePages.anchor', function() {
 
@@ -29,8 +34,7 @@ describe('mongoosePages.anchor', function() {
             var username = 'dancer' + now + Math.floor(Math.random() * 100000000);
             var points = Math.floor(now * Math.random()/ 100000000);
             var email = now + '@disco.org';
-
-            new User({ 'username': username, 'points': points, 'email': email })
+            new User({ 'username': username, 'points': points, 'email': email, 'position': parseInt(i) })
                 .save(function(err) {
                     if (err) { return cb(err); }
                     populate(++i, total, cb);
@@ -45,8 +49,11 @@ describe('mongoosePages.anchor', function() {
 
     })
 
-    // # after testing, close the db connection
-    after(function() { connection.close(); })
+    // # after testing, clear db and close connection
+    after(function() {
+        // User.remove({});
+        connection.close();
+    })
 
 
     //# test cases
@@ -132,6 +139,18 @@ describe('mongoosePages.anchor', function() {
             assert.equal(result, undefined);
             done();
         }, 10, 'x')
+    })
+
+    it('should use first sort condition to find anchor field and comparison operation', function(done) {
+        User.findPaginated({}, '', {sort: {position: -1}}, function(err, result) {
+            assert.equal(err, null);
+            assert.equal(result.documents[0].position, 27);
+            User.findPaginated({}, '', {sort: {position: -1}}, function(err, result) {
+                assert.equal(err, null);
+                assert.equal(result.documents[0].position, 17);
+                done();
+            }, 10, result.nextAnchorId);
+        }, 10, undefined);
     })
 
     describe('page count tests', function () {
